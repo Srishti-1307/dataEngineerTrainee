@@ -1,0 +1,6 @@
+Error handling is an easy topic.
+ It can be a warning to learn it in early stage.
+ Error  must be avoided during cuz they may cause large Error in code.
+ This is last warning .
+ Error and warning counts to be find.
+ error

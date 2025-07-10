@@ -1,0 +1,4 @@
+here i'll add python for data science notes.
+following topics will be covered:
+python basic to advance
+SQL Postgre

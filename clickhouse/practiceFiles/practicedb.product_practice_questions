@@ -1,0 +1,167 @@
+select * from practicedb.product
+select * from practicedb.product_info
+
+WINDOW FUNCTIONS
+27. Rank products by revenue within each category.
+28. Show cumulative revenue for each product.
+29. Calculate difference in units sold between days.
+30. Show moving average of revenue over last 3 days (assume multiple dates).
+
+
+
+#27
+select category,`Product Name`, sum(revenue),
+rank() over(partition by `category` order by sum(revenue) desc) as r
+from practicedb.product 
+GROUP BY category,`Product Name`
+
+
+#28
+select 	`Product Name`, sum(revenue) over(partition by `Product Name`) as cumulative_sum
+from practicedb.product 
+limit 1 by cumulative_sum
+
+
+#29
+with new as(
+select `date`, sum(`Units Sold`) as total_sold, lag(`total_sold`) over() as prev_day_sale
+from practicedb.product 
+group by date
+order by date)
+
+select *, (total_sold - prev_day_sale) as difference from new
+
+
+#30
+select date, sum(revenue) as total_revenue,
+avg(total_revenue) over(rows between 2 preceding and current row) as rolling_avg
+from practicedb.product group by date
+
+
+
+#extra: What is the average daily revenue per month?
+select month(date) as months, sum(revenue) as total_revenue, avg(total_revenue) over() as average_revenue
+from practicedb.product
+group by months
+
+
+
+JOINS
+31. Join with a `product_info` table to show supplier name per product.
+32. Get all products supplied by "HealthCore Inc.".
+33. Compare revenue with industry average from a `category_benchmarks` table.
+
+
+
+create table practicedb.product_info(category String, supplier_name String, city String )
+order by supplier_name
+
+insert into practicedb.product_info values
+('Protien', 'HealthCore Inc', 'Jaipur'),
+('Herbal', 'Himalaya', 'Jaipur')
+('Vitamin', 'Dailyneeds', 'Nagpur'),
+('Protein', 'Himalaya', 'Patna')
+('Mineral', 'Dailyneeds', 'Ahemdabad'),
+('Herbal', 'Himalaya', 'Nagpur'),
+('Mineral', 'Mamaearth', 'Pune'),
+('Omega', 'HealthCore Inc', 'Ranchi'),
+('Mineral', 'Mamaearth', 'Ahemdabad'),
+('Herbal', 'Himalaya', 'Patna'),
+('Protien', 'HealthCore Inc', 'Goa')
+
+select * from practicedb.product_info
+
+
+#31
+select p.category, pi.supplier_name from practicedb.product as p
+inner any join practicedb.product_info as pi
+on p.category = pi.category
+order by p.category
+
+
+
+#extra1: find which city has highest sale 
+select pi.city, sum(p.revenue) as total_revenue from practicedb.product as p 
+join practicedb.product_info as pi
+on p.category = pi.category
+group by pi.city
+order by total_revenue desc 
+limit 1
+
+
+#extra2: month-wise calculate which city has highest sale
+select month(p.date) as months, sum(p.revenue) as total_revenue, pi.city from practicedb.product as p
+join practicedb.product_info as pi
+on p.category = pi.category
+group by p.date, pi.city
+order by months, total_revenue desc
+limit 1 by months
+
+
+#32
+select  distinct p.category,pi.supplier_name from practicedb.product p 
+join practicedb.product_info pi
+on p.category=pi.category
+where pi.supplier_name = 'HealthCore Inc'
+
+
+
+
+CTE AND SUBQUERIES
+34. Use a CTE to calculate return rate and show top 5 products by that.
+35. Show all products with units sold above the category average.
+36. Find the maximum revenue product per location using a subquery.
+37. Select records where price is above average for its category.
+
+
+#34
+with cte as(
+select `Product Name`, sum(`Units Sold`) as total_sold, sum(`Units Returned`) as total_returned
+from practicedb.product 
+group by `Product Name`)
+select cte.`Product Name`, round((100-(((cte.total_sold - cte.total_returned)/ cte.total_sold)*100)),2)
+as percentage_returned from cte
+order by percentage_returned desc 
+limit 5
+
+
+#35 
+with cte as( 
+select category, round(avg(`Units Sold`),2) as avg_units_sold from practicedb.product 
+group by category )
+select p.`Product Name`, p.`Units Sold`from practicedb.product as p
+join cte as c
+on c.category = p.category 
+where p.`Units Sold` > c.avg_units_sold 
+
+
+#36 
+with cte as (select location, `Product Name`, sum(revenue) as total_revenue
+from practicedb.product p group by location, `Product Name`)
+
+select `Product Name`, cte.total_revenue as revenue from cte
+where revenue in (
+select max(total_revenue) from (select location, `Product Name` , sum(revenue) as total_revenue
+from practicedb.product group by location, `Product Name` )
+group by location )
+
+
+
+#37
+with cte as (select category, avg(price) as avg_price from practicedb.product  group by category)
+
+select * from practicedb.product as x 
+join cte 
+on x.category = cte.category
+where x.category = cte.category and x.price> cte.avg_price
+
+
+
+
+
+
+
+
+
+
+
